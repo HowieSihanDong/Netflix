@@ -1,0 +1,348 @@
+---
+title: "RMHI/ARMP Problem Set 2"
+author: 'SiHan Dong 1219613 [Word Count: 1752]'
+output:
+  word_document: default
+  pdf_document: default
+---
+
+Please put your answers here, following the instructions in the assignment description. Put your answers and word count tallies in the locations indicated; if none is indicated that means there is no word count for that question. Remember to knit as you go, and submit the knitted version of this on Canvas.
+
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
+# We'll begin by loading up the libraries and data we need, as always.
+knitr::opts_chunk$set(echo = TRUE)
+
+# loading the libraries
+library(tidyverse)
+library(here)
+library(ggplot2)
+library(lsr)
+library(RColorBrewer)
+library(car)
+# loading datasets
+do <- read_csv(file=here("others.csv"))
+dl <- read_csv(file=here("liedetector.csv"))
+dd <- read_csv(file=here("otherdata.csv"))
+dd$size <- as.factor(dd$size)
+ddt2 <- dd %>% filter(time=="t2")
+```
+
+## Q1 
+
+```{r q1, warning=FALSE, message=FALSE, fig.width=3, fig.height=3}
+# Draw a scatterplot
+do %>%
+  ggplot(mapping=aes(x=scariness,y=height)) +
+  geom_point(colour="darkblue",alpha=0.7,size=3) +
+  theme_bw() +
+  labs(title = "Relationship between scariness and height", 
+       x="Scariness (how scary that person seems)", y="Height in centimeters") +
+  theme(axis.title = element_text(size = 8),
+        plot.title = element_text(size = 8),
+        strip.text = element_text(size = 6),
+        #change size for sub-chart title after "facet_wrap"
+        axis.ticks = element_line(linewidth = 1),
+        axis.ticks.length=unit(0.15,"cm"))
+
+#Calculate Spearman correlation and run test for it
+cor.test(do$scariness,do$height,method="spearman")
+```
+
+*ANSWER: Spearman correlation was used because 1) the relationship between two variable is not linear (e.g., an outlier and most points clustered together at bottom) which indicates using Pearson correlation can largely misrepresent the relationship; 2) Spearman correlation test the monotonic (does not assume linear) relationship. We found a positive but not significant Spearman correlation, S = 28, p = .267 with rho = 0.5, which indicates statistically, there is no monotonic relationship between height and scariness. It indicates that being taller does not necessarily make others feel scared. I speculate the reason is perception of height in Bunnyland is different from human-world.[Word count: 102]* 
+
+## Q2 
+
+```{r q2, fig.height=4, fig.width=4.7, message=FALSE, warning=FALSE}
+dl %>% 
+  ggplot(mapping = aes(x=name, y=hr)) +
+  geom_violin(aes(fill = type),alpha = 0.3,color = NA,trim=FALSE)+
+  geom_boxplot(aes(fill = type),
+               width=0.4, 
+               position = position_dodge(0.9),
+               color="#333333", 
+               size =0.4,
+               alpha = 0.7) +
+  
+  theme_bw() +
+  theme(legend.position = c(0.2, 0.85))+
+  scale_fill_brewer(palette="Dark2") +
+  labs(title="Performance on lie detector test",x="Name of person",y="Heart rate")
+```
+
+## Q3 
+
+```{r q3, warning=FALSE, message=FALSE, fig.width=3, fig.height=3}
+#Compare the scores between control question and test question
+dl %>% 
+  ggplot(mapping = aes(x=type, y=hr)) +
+  geom_violin(aes(fill = type),alpha = 0.3,color = NA,trim=FALSE)+
+  geom_boxplot(aes(fill = type),
+               width=0.4, 
+               position = position_dodge(0.95),
+               color="#333333", 
+               size =0.4,
+               alpha = 0.7) +
+  theme_bw() +
+  #theme(axis.ticks.y = element_blank()) +
+  scale_fill_brewer(palette="Dark2") +
+  labs(title="Performance on lie detector test",x="Question type",y="Heart rate")
+
+#Test whether LFB and/or Foxy lied, Using directional paired t-test (Little Blue:If higher on the test, thus probably lying on the test questions.”)
+
+#help(t.test) tell me: difference = x - y (x and y is arguemnt in following part)
+
+#Test if LFB lied
+lfb_test <- dl$hr[dl$name == "lfb" & dl$type == "test"]
+lfb_control <- dl$hr[dl$name == "lfb" & dl$type == "control"]
+t.test(x = lfb_test, y = lfb_control, paired=TRUE, alternative="greater")
+
+#Test if Foxy lied
+f_test <- dl$hr[dl$name == "foxy" & dl$type == "test"]
+f_control <- dl$hr[dl$name == "foxy" & dl$type == "control"]
+t.test(x = f_test, y = f_control, paired=TRUE, alternative="greater")
+
+
+#Compare the scores between LFB and Foxy
+dl %>% 
+  ggplot(mapping = aes(x=name, y=hr)) +
+  geom_violin(aes(fill = name),alpha = 0.3,color = NA,trim=FALSE)+
+  geom_boxplot(aes(fill = name),
+               width=0.4, 
+               position = position_dodge(0.95),
+               color="#333333", 
+               size =0.4,
+               alpha = 0.7) +
+  theme_bw() +
+  #theme(axis.ticks.y = element_blank())+
+  scale_fill_brewer(palette="Dark2") +
+  labs(title="Performance on lie detector test",x="Name",y="Heart rate")
+
+#Test whether LFB's and Foxy performance was different: Paired t-test
+t.test (formula = hr ~ name, data = dl, paired=TRUE)
+```
+
+*ANSWER: To detect if they lied, one-sided paired-samples t-test was used because 1) assumptions are met; 2) testing if one is higher than another is one-sided test; 3) Heart rate (HR) are measured in same people, indicating HR data between different question types are related (paired test); 4) Outcome (HR) is numeric and predictor (question type) is nominal. Test results were not significant: LFB, t(24) = 0.858, p = .200; Foxy, t(24) = -1.192, p = .878, suggesting HRs on test questions are not greater than control questions and they did not lie. To test if performance of LFB and Foxy are different, two-sided paired samples t-test was used because each observation for both people is from same question (their scores are dependent). T-test reported a significant result, t(49) = -7.09, p < .001, indicating performance are different. Combining with figure, lfb was slightly more nervous than foxy. [Word count: 147]* 
+
+## Q4
+
+**Q4a**
+
+```{r q4a, warning=FALSE, message=FALSE, fig.width=3.5, fig.height=3}
+# histogram for each group
+dd %>%
+  ggplot(mapping = aes(x=health,fill=time))+ 
+  geom_density(colour="black", alpha=0.5) + 
+  theme_bw() + 
+  xlim(35,105)+
+  labs(title = "Density plot of individual health distributions for different time", y = "Answer density",x = "Health")
+
+#draw a Quantile-quantile (QQ) plots for t1
+qqnorm(dd$health[dd$time == "t1"],main = "Normal Q-Q Plot for t1")
+
+#draw a Quantile-quantile (QQ) plots for t1
+qqnorm(dd$health[dd$time == "t2"],main = "Normal Q-Q Plot for t2")
+
+# Use Shapiro-Wilk test to quantifying departures from normality
+shapiro.test(dd$health[dd$time == "t1"])
+shapiro.test(dd$health[dd$time == "t2"])
+```
+
+*ANSWER: Two-sided paired-samples t-test is used so assumption is data of each group is normally distributed. The Shapiro-Wilk test was used. Two variable involve: health and time. The test result was not significant for time 1, W = 0.988, p = 0.967. The test result was not significant for time 2, W = 0.982, p = 0.855. Non-significant results of both groups are normally distributed (assumption is not violated). [Word count: 68]* 
+
+**Q4b**
+
+```{r q4b, warning=FALSE, message=FALSE, fig.width=3.5, fig.height=3}
+#Draw violin plot+boxplot to visually present the overall position of t1 and t2 health ratings
+dd %>% 
+  ggplot(mapping = aes(x=time, y=health)) +
+  geom_violin(aes(fill = time),alpha = 0.3,color = NA,trim=FALSE)+
+  geom_boxplot(aes(fill = time),
+               width=0.4, 
+               position = position_dodge(0.95),
+               color="#333333", 
+               size =0.4,
+               alpha = 0.7) +
+  theme_bw() +
+  #theme(axis.ticks.y = element_blank())+
+  scale_fill_brewer(palette="Dark2") +
+  labs(title="Overall health rating for time 1 and time 2",x="Time",y="Health")
+
+#Paired test
+t.test(x=dd$health[dd$time == "t1"], y=dd$health[dd$time == "t2"], paired=TRUE)
+
+#Effect size for paired t-test
+cohensD(x=dd$health[dd$time == "t1"], y=dd$health[dd$time == "t2"], method = "paired")
+
+#generate descriptive data for t1
+summary(dd$health[dd$time == "t1"])
+sd(dd$health[dd$time == "t1"])
+
+#generate descriptive data for t2
+summary(dd$health[dd$time == "t2"])
+sd(dd$health[dd$time == "t2"])
+```
+
+*ANSWER: Mean health rating at time 1 is 76.5 (SD = 11.4) and at time 2 is 66.8 (SD = 11.5). The two-sided paired-samples t-test was used because 1) we focus if the health at different times are different (two-sided test); 2) data were measured within same people at different times, suggesting datasets of t1 and t2 are related (paired test); 3) predictor (time point) defined by nominal variable and outcome (health rating) is numeric variable (t-test). The test result was significant, t(32) = 9.172, p < .001, with a large effect size, Cohen's d = 1.597. Combining the figure, this might suggest people’s health is getting worse. [Word count: 107]* 
+
+## Q5
+
+```{r q5, warning=FALSE, message=FALSE, fig.width=3.5, fig.height=3}
+#Histogram of individual disability across different time
+dd %>%
+  ggplot(mapping = aes(x=disability,fill=time))+ 
+  geom_bar(position = "dodge") + 
+  theme_bw() +
+  scale_fill_brewer(palette="Dark2") +
+  labs(title = "Histogram of disability across time", y = "Answer density",x = "Disability")
+
+#McNemar's test
+distable <- table(dd$disability[dd$time == "t1"],dd$disability[dd$time == "t2"])
+mcnemar.test(x=distable)
+
+#descriptive data
+summary(dd$disability[dd$time == "t1"])
+summary(dd$disability[dd$time == "t2"])
+```
+
+*ANSWER: McNemar test was used because 1) the target variable (i.e., disability) is discrete and binary measurement (i.e., True or False); 2) the disability data of t1 and t2 is not independent due to within a repeated measures design, and 3) the question is if the difference between t1 and t2 disability data is significant. McNemar test can solve the violation of mentioned assumption of chi-squared test. At time 1, 8 people were disabled and 25 people were not. At time 2, 16 people were disabled and 17 people were not. McNemar test reports the difference is significant, X^2^(1) = 4.9, p = .027, suggesting significant disability difference between t1 and t2. It indicates disability presented a similar pattern as health and might support self-report data is reliable. [Word count: 127]* 
+
+## Q6
+
+*ANSWER: One-way ANOVA is used. First, exclusion ensures assumption of independence of residual. Residual is the difference between an observation and the mean of observation’s group. Within certain size group, observations from t1 (O1) and t2 (O2) is not independent, indicating their residuals (O1-u and O2-u) are not independent because minus a constant u cannot affect the dependence. Repeated measures ANOVA can solve the dependence of residual. Second, it ensures normality of residual as much as possible. Hypothetically, if data from t1 and t2 are both normally distributed, it is hard to also be normally distributed after combining them because they usually have different mean and variance, which also indicates a non-normal distribution for residual (same math mentioned before). We can use Kruskal-Wallis test to solve this violation. [Word count: 127]* 
+
+## Q7
+
+```{r q7, warning=FALSE, message=FALSE, fig.width=3.5, fig.height=3}
+# Create ANOVA model
+sizehealthmodel <- aov(health ~ size, data = ddt2)
+
+#First, Evaluate the normality of residual by running Shapiro-Wilk normality test
+qqnorm(sizehealthmodel$residuals)
+shapiro.test(x=sizehealthmodel$residuals)
+
+#Second, evaluate homogeneity of variance across groups
+ddt2 %>%
+  ggplot(mapping = aes(x=health,fill=size)) + 
+  geom_density(colour="black", alpha=0.5) + 
+  theme_bw() + 
+  labs(title = "Density of health distributions",
+       y = "Answer density",
+       x = "Rating")
+
+#Run Levene test
+leveneTest(health ~ size, data = ddt2)
+```
+
+*ANSWER: Assumption 1: Residuals (i.e., observation minus mean of group) are normally distributed. Shapiro-Wilk normality test was used and the result is not significant, W = 0.975, p = .644. This indicates residuals are normally distributed and assumption was not violated. This is also evidenced by QQ plot approximates a straight line. Assumption 2: Different groups have same variance (i.e., homogeneity of variance). Levene test was used and the results is not significant, F(2,30) = 0.100, p = .905. This indicates variance of different groups are same and assumption was not violated. [Word count: 91]* 
+
+## Q8
+
+```{r q8, warning=FALSE, message=FALSE, fig.width=3.5, fig.height=3}
+#Draw a Figure to visualize data
+ddt2_sum <- ddt2 %>%
+  group_by(size) %>%
+  summarise(mean = mean(health, na.rm = TRUE),
+            sd = sd(health, na.rm = TRUE)) %>%
+  ungroup()
+
+ddt2_sum %>% 
+  ggplot(mapping = aes(x = size, y = mean, fill = size, color = size)) + 
+  geom_col(alpha=0.5, show.legend=FALSE, colour="black", size =0.7) +
+  geom_jitter(data = ddt2, 
+              mapping = aes(x = size, 
+                            y = health), 
+              alpha = 0.55, show.legend = FALSE, size = 1.5) +
+  geom_errorbar(mapping = aes(ymin = mean - sd, 
+                              ymax = mean + sd), 
+                width = 0.2,  
+                show.legend = FALSE, 
+                linetype = "solid",
+                colour = "black",
+                size = 0.7) +
+  scale_fill_brewer(palette="Set1") +
+  scale_colour_brewer(palette="Set1") +
+  theme_bw() + 
+  #ensure the order of X values is consistent with the requirement 
+  labs(title = "Health rating in each size group",
+       y = "Health",
+       x = "Size",
+       size = 1)
+
+#Run one-way ANOVA because satisfy two main assumption
+sizehealthmodel <- aov(health ~ size, data = ddt2)
+summary(sizehealthmodel)
+etaSquared(sizehealthmodel)
+
+#generarte descriptive data
+ddt2_sum1 <- ddt2 %>%
+  group_by(size) %>%
+  summarise(mean = mean(health, na.rm = TRUE),
+            sd = sd(health, na.rm = TRUE),
+            n = n()) %>%
+  ungroup()
+
+summary (ddt2$size)
+summary(ddt2$health)
+sd(ddt2$health)
+```
+
+*ANSWER: Sample consisted of 33 people and each size group has 11 people. People with small sizes had a mean health 72.7 (SD = 11.1), with medium size 65 (SD = 10.4), and with large size 62.7 (SD = 11.5). One-way ANOVA was used because (1) we want to compare health rating (continuous outcome variable) across sizes (discrete predictor variable); (2) all assumptions were met. ANOVA reported that there was no significant effect of size group on health rating, F(2,30) = 2.486, p = .100, η^2^= .142, indicating no difference in health by size. Effect size is 0.142, indicating size only explained 14.2% variance of health. [Word count: 105]* 
+
+## Q9
+
+**Q9a**
+
+```{r q9a, warning=FALSE, message=FALSE, fig.width=3.5, fig.height=3}
+lm1 <- lm(health ~ height, data = ddt2)
+summary (lm1)
+
+#Draw the linear regression line
+ddt2 %>%
+  ggplot(mapping=aes(x=height,y=health)) +
+  geom_point(colour="darkblue",alpha=0.7,size=3) +
+  geom_smooth(method = "lm", se=TRUE) +
+  theme_bw() +
+  labs(title = "Relationship between height and health", 
+       x="Height", y="Health")
+```
+
+*ANSWER: The linear regression model and two-sided t-test were used because (1) all assumptions are met; (2) we want to test if a numeric predictor (height) for a numeric outcome variable (health) is significant. T-test reported a significant result, t(31) = -2.72, p = .011. Combining the slope is -0.15, this indicates each increase in height predicts a decrease of 0.15 in health. The whole regression model is significant, F(1,31) = 7.41, p = .011, with effect size of 0.193, indicating model accounted for 19.3% of variance of health. Since there is only one predictor in model, both significance of model and coefficient of height suggested height is a significant predictor. [Word count: 110]* 
+
+**Q9b**
+
+*ANSWER: It is different. ANOVA reported there was no difference in health by size, which is different from that height significantly predict the health from linear regression model. This is because the statistical tools and variables used are different. First, linear regression aims to find if there is relationship between variables, but ANOVA does not directly tell the relationship and only reports if there is difference between multiple groups. Result from ANOVA does not necessarily give information about existence of relationship. Second, ANOVA examines the difference in health among groups defined by a categorical variable (i.e., size). However, linear regression examines the relationship between health and height (all numeric). The result difference may stem from that converting height into size largely lost information of relative discrepancy of height. ANOVA only focus on the between and within groups variability of health, which homogeneously treat the height of people in same group (e.g., people are small instead of considering how small they are). Conversely, linear regression considers changes for both variables to find a line that best fit in data points and reports the existence, direction, and strength of the predictor. [Word count: 188]* 
+
+
+## Q10
+
+```{r q10, warning=FALSE, message=FALSE, fig.width=3.5, fig.height=3}
+lm2 <- lm(health ~ height + income, data = ddt2)
+summary (lm2)
+```
+
+*ANSWER: Effect of height is partially different. For current regression model, height is significant predictor with slope of -0.11. For model using only height as predictor, height is significant predictor with slope of -0.15. Therefore, significance and sign of predictor are same and magnitude of effect is different. The magnitude change is because additional variable can explain some variance of health rating (evidenced by increased R-squared). Moreover, linear regression finds best fits line for all variables. Therefore, interpretations of each coefficient are adjusted accordingly, including magnitude of height effect. However, the ability of “income” to explain variance was not strong enough for linear regression to place most weights on income and ignore height (making it non-significant). Similarly, introduction of income cannot change health and height are negatively related. Therefore, sign and significance of effect remains the same. [Word count: 136]* 
+
+## Q11
+
+**Q11a**
+
+*ANSWER: (i) A (ii) A (iii) B *
+
+**Q11b**
+
+*ANSWER: (i) X^2^ is squared deviations from expected frequency (from null hypothesis) divided by expected frequency and summed across each category. The X^2^ distribution is positively skewed and defined by degree of freedom (df). For df=3, the main body is between 0-7. For chi-squared test, p-value is possibility that test statistic at least as large as sample's X^2^. X^2=75.3 is at extremely right side, thus, impossible that 93.6% of distribution at its right side. (ii) T-statistic is difference between sample mean and expected mean divided by standard error (i.e., difference equals how many SE). p-value is the possibility that t-statistic at least as extreme as sample's t-statistic. For one-sided or two-sided t-test, conventional critical value is around 1.8-2.5 (for z-distribution is 1.96 and t-distributions are approximations of z-distribution). t=0.67 is in main body of distribution, thus, impossible that only 0.3% possibility of sample being at least as extreme as it. (iii) F-statistic usually equals to one mean squares (MS, equals to sum of squares/df, non-negative) divided by another one. Therefore, F-statistic is non-negative and cannot be -82.9. Definition of p-value is same as (i). We have 100% to observe non-negative F-statistic to be higher than -82.9 (not p<.001). [Word count: 197]*
+
+## Q12
+
+**Q12a**
+
+*ANSWER: (i) C (ii) A (iii) B (iv) D *
+
+**Q12b**
+
+*ANSWER: (i) For any x2, y=1.5x1 from equation. Thus, the figure is a plane. Fixing x2=2 in C, as x1 increase from 0 to 2, y increase from 0 to 3, suggesting slope (1.5) is consistent with equation. For different x2, equation suggest colour change of figure, as x1 moves, are same due to same slope (indicators of y value; lighter is greater from lecture), consistent with C. (ii) Equation suggests, as x2 increase, slope and intercept of function in {x1,y} space increase. This is consistent with that 1) for left side of A, when x1 increase, y decrease (colour getting dark) but for right side is opposite (because slope increases); 2) as x2 increase, whole figure tilted up because intercept increases. Moreover, observing from A’s perspective, as x2=-1, y=1 and visually is a point, consistent with A. (iii) Equation suggest 1) when x2=2, the slope is 2 with -3 as intercept and when x1=-2, the slope is -1.5 with -4 as intercept, consistent with lower right or left side (and its colour change) of B; 2) as x1 increase and x2 decrease, y increase, consistent with B becoming lighter from bottom to top. (iv) For left side of D (x2=-3), as x1 move from 0 to 2, change of y is approximately 20, close to prediction (change=11(2-0)=22) from equation. Equation suggest as x2 increase, slope in {x1,y} space decrease; when x2=2/3, y=2/3 and visually is point from perspective of D, consistent with D (and its colour change). [Word count: 247]*
+
+## Q13
+
+*ANSWER: Jie Sun and Andy as my favorite tutor and lecturer (sycophantically, just google this word). QUAK (think spell correctly) Cuz love to imagine how QUAK speak "QUAKQUAKQUAKQUAK".* 
+
