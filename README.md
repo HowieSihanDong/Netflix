@@ -1,4 +1,4 @@
-# 🎥 Netflix Machine Learning Project 🍿
+# 🎥 Netflix Visualization & Machine Learning Project🍿
 
 Welcome to the **Netflix Machine Learning Project** repository! This project explores the use of various classifiers on a dataset containing detailed information about movies and TV shows available on Netflix. 🧠📊
 
